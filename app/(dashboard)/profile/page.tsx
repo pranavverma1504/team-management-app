@@ -1,9 +1,20 @@
-import React from 'react'
+import ProfileCard from "@/components/profile/ProfileCard";
 
-const page = () => {
+export default function ProfilePage() {
   return (
-    <div>dashboard/profile page</div>
-  )
-}
+    <div>
+      <h1 className="text-2xl font-bold">
+        Profile
+      </h1>
 
-export default page
+      <p className="text-gray-500 mt-1 mb-8">
+        Manage your personal information
+      </p>
+
+      <ProfileCard
+        name="Pranav Verma"
+        email="pranav@example.com"
+      />
+    </div>
+  );
+}
