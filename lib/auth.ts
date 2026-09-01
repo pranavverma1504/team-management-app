@@ -6,6 +6,16 @@ import connectDb from "@/lib/db";
 import User from "@/models/User";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  pages: {
+    signIn: "/login",
+  },
+
+  callbacks: {
+    authorized({ auth }) {
+      return !!auth?.user;
+    },
+  },
+
   providers: [
     Credentials({
       credentials: {
@@ -14,15 +24,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
 
       async authorize(credentials) {
-        // 1. Check credentials exist
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
-        // 2. Connect MongoDB
         await connectDb();
 
-        // 3. Find user
         const user = await User.findOne({
           email: credentials.email,
         });
@@ -31,7 +38,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        // 4. Compare password
         const isPasswordCorrect = await bcrypt.compare(
           credentials.password as string,
           user.password
@@ -41,7 +47,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        // 5. Return user
         return {
           id: user._id.toString(),
           name: user.name,
