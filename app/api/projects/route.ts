@@ -68,8 +68,16 @@ export async function GET() {
 
     await connectDb();
 
+    const memberships = await ProjectMember.find({
+      userId: session.user.id,
+    });
+
+    const projectIds = memberships.map(
+      (membership) => membership.projectId
+    );
+
     const projects = await Project.find({
-      ownerId: session.user.id,
+      _id: { $in: projectIds },
     }).sort({ createdAt: -1 });
 
     return NextResponse.json(

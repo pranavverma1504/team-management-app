@@ -10,6 +10,17 @@ type Project = {
   description: string;
 };
 
+type Member = {
+  _id: string;
+  role: "OWNER" | "ADMIN" | "MEMBER";
+  userId: {
+    _id: string;
+    name: string;
+    email: string;
+    profileImage?: string;
+  };
+};
+
 export default function ProjectDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -20,9 +31,14 @@ export default function ProjectDetailsPage() {
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const [members, setMembers] = useState<Member[]>([]);
+
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showMemberForm, setShowMemberForm] = useState(false);
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [memberEmail, setMemberEmail] = useState("");
 
   const getProject = async () => {
     try {
@@ -35,6 +51,29 @@ export default function ProjectDetailsPage() {
       setDescription(response.data.project.description);
     } catch (error) {
       console.error("Failed to fetch project:", error);
+    }
+  };
+
+  const getMembers = async () => {
+    try {
+      const response = await axios.get(
+        `/api/projects/${id}/members`
+      );
+
+      setMembers(response.data.members);
+    } catch (error) {
+      console.error("Failed to fetch members:", error);
+    }
+  };
+
+  const loadProjectData = async () => {
+    try {
+      setLoading(true);
+
+      await Promise.all([
+        getProject(),
+        getMembers(),
+      ]);
     } finally {
       setLoading(false);
     }
@@ -79,9 +118,92 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const addMember = async () => {
+    try {
+      if (!memberEmail) {
+        alert("Email is required");
+        return;
+      }
+
+      await axios.post(`/api/projects/${id}/members`, {
+        email: memberEmail,
+      });
+
+      setMemberEmail("");
+      setShowMemberForm(false);
+
+      await getMembers();
+
+      alert("Member added successfully");
+    } catch (error) {
+      console.error("Failed to add member:", error);
+
+      if (axios.isAxiosError(error)) {
+        alert(
+          error.response?.data?.message ||
+            "Failed to add member"
+        );
+      }
+    }
+  };
+
+  const changeMemberRole = async (
+    memberId: string,
+    newRole: "ADMIN" | "MEMBER"
+  ) => {
+    try {
+      await axios.patch(
+        `/api/projects/${id}/members/${memberId}`,
+        {
+          role: newRole,
+        }
+      );
+
+      await getMembers();
+    } catch (error) {
+      console.error("Failed to change member role:", error);
+
+      if (axios.isAxiosError(error)) {
+        alert(
+          error.response?.data?.message ||
+            "Failed to change role"
+        );
+      }
+    }
+  };
+
+  const removeMember = async (memberId: string) => {
+    try {
+      const confirmed = confirm(
+        "Are you sure you want to remove this member?"
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      await axios.delete(
+        `/api/projects/${id}/members/${memberId}`
+      );
+
+      await getMembers();
+
+      alert("Member removed successfully");
+    } catch (error) {
+      console.error("Failed to remove member:", error);
+
+      if (axios.isAxiosError(error)) {
+        alert(
+          error.response?.data?.message ||
+            "Failed to remove member"
+        );
+      }
+    }
+  };
+
   useEffect(() => {
     if (id) {
-      getProject();
+      loadProjectData();
     }
   }, [id]);
 
@@ -97,6 +219,12 @@ export default function ProjectDetailsPage() {
     role === "OWNER" || role === "ADMIN";
 
   const canDelete =
+    role === "OWNER";
+
+  const canManageMembers =
+    role === "OWNER" || role === "ADMIN";
+
+  const canChangeRoles =
     role === "OWNER";
 
   return (
@@ -122,7 +250,9 @@ export default function ProjectDetailsPage() {
         <div className="flex gap-3">
           {canEdit && (
             <button
-              onClick={() => setShowEditForm(!showEditForm)}
+              onClick={() =>
+                setShowEditForm(!showEditForm)
+              }
               className="border px-4 py-2 rounded-lg"
             >
               Edit Project
@@ -150,14 +280,18 @@ export default function ProjectDetailsPage() {
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) =>
+                setName(e.target.value)
+              }
               placeholder="Project name"
               className="border p-3 rounded-lg"
             />
 
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) =>
+                setDescription(e.target.value)
+              }
               placeholder="Project description"
               className="border p-3 rounded-lg"
             />
@@ -171,7 +305,9 @@ export default function ProjectDetailsPage() {
               </button>
 
               <button
-                onClick={() => setShowEditForm(false)}
+                onClick={() =>
+                  setShowEditForm(false)
+                }
                 className="border px-4 py-2 rounded-lg"
               >
                 Cancel
@@ -180,6 +316,137 @@ export default function ProjectDetailsPage() {
           </div>
         </div>
       )}
+
+      <div className="mt-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">
+            Project Members
+          </h2>
+
+          {canManageMembers && (
+            <button
+              onClick={() =>
+                setShowMemberForm(!showMemberForm)
+              }
+              className="border px-4 py-2 rounded-lg"
+            >
+              Add Member
+            </button>
+          )}
+        </div>
+
+        {showMemberForm && canManageMembers && (
+          <div className="border rounded-xl p-5 mb-6 max-w-xl">
+            <h3 className="font-semibold mb-4">
+              Add Project Member
+            </h3>
+
+            <div className="flex flex-col gap-4">
+              <input
+                type="email"
+                placeholder="Member email"
+                value={memberEmail}
+                onChange={(e) =>
+                  setMemberEmail(e.target.value)
+                }
+                className="border p-3 rounded-lg"
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={addMember}
+                  className="border px-4 py-2 rounded-lg"
+                >
+                  Add
+                </button>
+
+                <button
+                  onClick={() =>
+                    setShowMemberForm(false)
+                  }
+                  className="border px-4 py-2 rounded-lg"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {members.length === 0 ? (
+          <p className="text-gray-500">
+            No members found.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {members.map((member) => (
+              <div
+                key={member._id}
+                className="border rounded-lg p-4 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-300" />
+
+                  <div>
+                    <p className="font-semibold">
+                      {member.userId.name}
+                    </p>
+
+                    <p className="text-sm text-gray-500">
+                      {member.userId.email}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {member.role === "OWNER" ? (
+                    <span className="text-sm font-medium">
+                      OWNER
+                    </span>
+                  ) : canChangeRoles ? (
+                    <select
+                      value={member.role}
+                      onChange={(e) =>
+                        changeMemberRole(
+                          member._id,
+                          e.target.value as
+                            | "ADMIN"
+                            | "MEMBER"
+                        )
+                      }
+                      className="border rounded-lg px-3 py-2"
+                    >
+                      <option value="MEMBER">
+                        MEMBER
+                      </option>
+
+                      <option value="ADMIN">
+                        ADMIN
+                      </option>
+                    </select>
+                  ) : (
+                    <span className="text-sm font-medium">
+                      {member.role}
+                    </span>
+                  )}
+
+                  {member.role !== "OWNER" &&
+                    canManageMembers && (
+                      <button
+                        onClick={() =>
+                          removeMember(member._id)
+                        }
+                        className="border px-3 py-2 rounded-lg"
+                      >
+                        Remove
+                      </button>
+                    )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
