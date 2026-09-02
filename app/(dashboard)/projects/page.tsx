@@ -60,7 +60,9 @@ export default function ProjectsPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Projects</h1>
+          <h1 className="text-2xl font-bold">
+            Projects
+          </h1>
 
           <p className="text-gray-500 mt-1">
             Manage your projects
@@ -133,6 +135,7 @@ export default function ProjectsPage() {
           {projects.map((project) => (
             <ProjectCard
               key={project._id}
+              id={project._id}
               name={project.name}
               description={project.description}
               members={1}
